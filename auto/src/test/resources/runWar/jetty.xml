@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "http://www.eclipse.org/jetty/configure_9_3.dtd">
+<!--Server config refer http://examples.javacodegeeks.com/enterprise-java/jetty/jetty-ssl-configuration-example/ -->
+<Configure id="Server" class="org.eclipse.jetty.server.Server">
+    <New id="httpConfig" class="org.eclipse.jetty.server.HttpConfiguration">
+        <Set name="secureScheme">https</Set>
+        <Set name="securePort">
+            <Property name="jetty.secure.port" default="${test.ssl.port}" />
+        </Set>
+        <Set name="outputBufferSize">32768</Set>
+        <Set name="requestHeaderSize">8192</Set>
+        <Set name="responseHeaderSize">8192</Set>
+        <Set name="sendServerVersion">true</Set>
+        <Set name="sendDateHeader">false</Set>
+        <Set name="headerCacheSize">512</Set>
+        <!-- Uncomment to enable handling of X-Forwarded- style headers
+        <Call name="addCustomizer">
+            <Arg>
+                <New class="org.eclipse.jetty.server.ForwardedRequestCustomizer"/>
+            </Arg>
+        </Call>
+        -->
+        <Call name="addCustomizer">
+            <Arg>
+                <New class="org.eclipse.jetty.server.SecureRequestCustomizer"/>
+            </Arg>
+        </Call>
+    </New>
+    <New id="sslContextFactory" class="org.eclipse.jetty.util.ssl.SslContextFactory">
+        <Set name="KeyStorePath">
+            <SystemProperty name="capsule.dir"/>/WEB-INF/ssl.keystore</Set>
+        <Set name="KeyStorePassword">
+            <Property name="jetty.keystore.password" default="${key.pass}"/>
+        </Set>
+        <Set name="KeyManagerPassword">
+            <Property name="jetty.keymanager.password" default="${key.pass}"/>
+        </Set>
+        <Set name="TrustStorePath">
+            <SystemProperty name="capsule.dir"/>/WEB-INF/ssl.keystore</Set>
+        <Set name="TrustStorePassword">
+            <Property name="jetty.truststore.password" default="${key.pass}"/>
+        </Set>
+        <Set name="EndpointIdentificationAlgorithm"></Set>
+        <Set name="ExcludeCipherSuites">
+            <Array type="String">
+                <Item>SSL_RSA_WITH_DES_CBC_SHA</Item>
+                <Item>SSL_DHE_RSA_WITH_DES_CBC_SHA</Item>
+                <Item>SSL_DHE_DSS_WITH_DES_CBC_SHA</Item>
+                <Item>SSL_RSA_EXPORT_WITH_RC4_40_MD5</Item>
+                <Item>SSL_RSA_EXPORT_WITH_DES40_CBC_SHA</Item>
+                <Item>SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA</Item>
+                <!-- Disable cipher suites with Diffie-Hellman key exchange to prevent Logjam attack 
+                and avoid the ssl_error_weak_server_ephemeral_dh_key error in recent browsers -->
+                <Item>SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA</Item>
+                <Item>SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA</Item>
+                <Item>TLS_DHE_RSA_WITH_AES_256_CBC_SHA256</Item>
+                <Item>TLS_DHE_DSS_WITH_AES_256_CBC_SHA256</Item>
+                <Item>TLS_DHE_RSA_WITH_AES_256_CBC_SHA</Item>
+                <Item>TLS_DHE_DSS_WITH_AES_256_CBC_SHA</Item>
+                <Item>TLS_DHE_RSA_WITH_AES_128_CBC_SHA256</Item>
+                <Item>TLS_DHE_DSS_WITH_AES_128_CBC_SHA256</Item>
+                <Item>TLS_DHE_RSA_WITH_AES_128_CBC_SHA</Item>
+                <Item>TLS_DHE_DSS_WITH_AES_128_CBC_SHA</Item>
+            </Array>
+        </Set>
+        <!-- setting required for preventing Poodle attack, see http://stackoverflow.com/questions/26382540/how-to-disable-the-sslv3-protocol-in-jetty-to-prevent-poodle-attack/26388531#26388531 -->
+        <Set name="ExcludeProtocols">
+            <Array type="java.lang.String">
+                <Item>SSLv3</Item>
+            </Array>
+        </Set>
+    </New>
+    <Call name="addConnector">
+        <Arg>
+            <New class="org.eclipse.jetty.server.ServerConnector">
+                <Arg name="server">
+                    <Ref refid="Server" />
+                </Arg>
+                <Arg name="factories">
+                    <Array type="org.eclipse.jetty.server.ConnectionFactory">
+                        <Item>
+                            <New class="org.eclipse.jetty.server.HttpConnectionFactory">
+                                <Arg name="config">
+                                    <Ref refid="httpConfig"/>
+                                </Arg>
+                            </New>
+                        </Item>
+                    </Array>
+                </Arg>
+                <Set name="port">
+                    <Property name="jetty.port" default="${test.http.port}"/>
+                </Set>
+                <Set name="idleTimeout">
+                    <Property name="https.timeout" default="30000"/>
+                </Set>
+            </New>
+        </Arg>
+    </Call>
+    <Call name="addConnector">
+        <Arg>
+            <New class="org.eclipse.jetty.server.ServerConnector">
+                <Arg name="server">
+                    <Ref refid="Server" />
+                </Arg>
+                <Arg name="factories">
+                    <Array type="org.eclipse.jetty.server.ConnectionFactory">
+                        <Item>
+                            <New class="org.eclipse.jetty.server.SslConnectionFactory">
+                                <Arg name="next">http/1.1</Arg>
+                                <Arg name="sslContextFactory">
+                                    <Ref refid="sslContextFactory"/>
+                                </Arg>
+                            </New>
+                        </Item>
+                        <Item>
+                            <New class="org.eclipse.jetty.server.HttpConnectionFactory">
+                                <Arg name="config">
+                                    <Ref refid="httpConfig"/>
+                                </Arg>
+                            </New>
+                        </Item>
+                    </Array>
+                </Arg>
+                <Set name="host">
+                    <Property name="jetty.host" />
+                </Set>
+                <Set name="port">
+                    <Property name="https.port" default="${test.ssl.port}"/>
+                </Set>
+                <Set name="idleTimeout">
+                    <Property name="https.timeout" default="30000"/>
+                </Set>
+            </New>
+        </Arg>
+    </Call>
+
+    <!-- JDBC url definition. 資料庫連線字串設定 -->
+    <New class="java.lang.StringBuilder">
+        <Call name="append">
+            <Arg>jdbc:h2:tcp://127.0.0.1/</Arg>
+        </Call>
+        <Call name="append">
+            <Arg><SystemProperty name="capsule.dir"/></Arg>
+        </Call>
+        <Call name="append">
+            <Arg>/WEB-INF/${project.artifactId};AUTO_SERVER=TRUE</Arg>
+        </Call>
+        <Call id="jdbcUrl" name="toString"/>
+    </New>
+    <Get class="java.lang.System" name="out">
+        <Call name="println">
+            <Arg>jdbc url is &quot;<Ref refid="jdbcUrl"/>&quot;</Arg>
+        </Call>
+    </Get>
+
+    <!-- H2 database definition start, 資料庫設定開始 -->
+    <New id="h2Service" class="org.h2.server.TcpServer"/>
+    <Array id="h2Args" type="java.lang.String">
+        <Item>-tcp</Item>
+        <Item>-tcpAllowOthers</Item>
+        <Item>-tcpAllowOthers</Item>
+        <Item>-tcpDaemon</Item>
+        <Item>-web</Item>
+        <Item>-webAllowOthers</Item>
+        <Item>-webDaemon</Item>
+        <Item>-baseDir</Item>
+        <Item><SystemProperty name="capsule.dir"/>/WEB-INF</Item>
+    </Array>
+    <New id="h2Server" class="org.h2.tools.Server">
+        <Arg>
+            <Ref refid="h2Service"/>
+        </Arg>
+        <Arg>
+            <Ref refid="h2Args"/>
+        </Arg>
+        <Call name="start"/>
+    </New>
+    <Array id="h2Run" type="java.lang.String">
+        <Item>-url</Item>
+        <Item><Ref refid="jdbcUrl"/></Item>
+        <Item>-user</Item>
+        <Item>sa</Item>
+        <Item>-password</Item>
+        <Item>${project.artifactId}</Item>
+        <Item>-script</Item>
+        <Item><SystemProperty name="capsule.dir"/>/WEB-INF/schema.sql</Item>
+    </Array>
+    <New class="org.h2.tools.RunScript">
+        <Call name="runTool">
+            <Arg>
+                <Ref refid="h2Run"/>
+            </Arg>
+        </Call>
+    </New>
+    <!-- H2 database definition end. 資料庫設定結束  -->
+
+    <!-- JNDI definition. JNDI設定 -->
+    <New id="postgres" class="org.eclipse.jetty.plus.jndi.Resource">
+        <Arg>${jndi.dsname}</Arg>
+        <Arg>
+            <New class="com.atomikos.jdbc.AtomikosDataSourceBean">
+                <Set name="minPoolSize">2</Set>
+                <Set name="maxPoolSize">10</Set>
+                <Set name="xaDataSourceClassName">org.h2.jdbcx.JdbcDataSource</Set>
+                <Set name="UniqueResourceName">${jndi.dsname}</Set>
+                <Set name="testQuery">SELECT 1 </Set>
+                <Get name="xaProperties">
+                    <Call name="setProperty">
+                        <Arg>url</Arg>
+                        <Arg>
+                            <Ref refid="jdbcUrl"/>
+                        </Arg>
+                    </Call>
+                    <Call name="setProperty">
+                        <Arg>user</Arg>
+                        <Arg>sa</Arg>
+                    </Call>
+                    <Call name="setProperty">
+                        <Arg>password</Arg>
+                        <Arg>${project.artifactId}</Arg>
+                    </Call>
+                </Get>
+                <Call name="init"/>
+            </New>
+        </Arg>
+    </New>
+
+    <!-- User Transaction definition -->
+    <New class="com.atomikos.icatch.config.UserTransactionServiceImp">
+        <Arg>
+            <New class="java.util.Properties">
+                <Call name="setProperty">
+                    <Arg>com.atomikos.icatch.service</Arg>
+                    <Arg>com.atomikos.icatch.standalone.UserTransactionServiceFactory</Arg>
+                </Call>
+                <Call name="setProperty">
+                    <Arg>com.atomikos.icatch.output_dir</Arg>
+                    <Arg><SystemProperty name="catalina.home"/>/logs/</Arg>
+                </Call>
+                <Call name="setProperty">
+                    <Arg>com.atomikos.icatch.log_base_dir</Arg>
+                    <Arg><SystemProperty name="catalina.home"/>/logs/</Arg>
+                </Call>
+                <Call name="setProperty">
+                    <Arg>com.atomikos.icatch.enable_logging</Arg>
+                    <Arg>true</Arg>
+                </Call>
+                <Call name="setProperty">
+                    <Arg>com.atomikos.icatch.console_log_level</Arg>
+                    <Arg>WARN</Arg>
+                </Call>
+                <Call name="setProperty">
+                    <Arg>com.atomikos.icatch.console_file_name</Arg>
+                    <Arg>atomikos-tm</Arg>
+                </Call>
+                <Call name="setProperty">
+                    <Arg>com.atomikos.icatch.log_base_name</Arg>
+                    <Arg>atomikos-base</Arg>
+                </Call>
+                <Call name="setProperty">
+                    <Arg>com.atomikos.icatch.tm_unique_name</Arg>
+                    <Arg>atomikos-txmgr</Arg>
+                </Call>
+            </New>
+        </Arg>
+        <Call name="init" />
+    </New>
+
+    <!-- Transaction Manager definition -->
+    <New id="txmgr" class="org.eclipse.jetty.plus.jndi.Resource">
+        <Arg></Arg>
+        <Arg>java:/TransactionManager</Arg>
+        <Arg>
+            <New class="com.atomikos.icatch.jta.UserTransactionManager">
+                <Set name="startupTransactionService">false</Set>
+                <Set name="forceShutdown">false</Set>
+                <Call name="init" />
+            </New>
+        </Arg>
+    </New>
+    <New id="tx" class="org.eclipse.jetty.plus.jndi.Transaction">
+        <Arg>
+            <New class="com.atomikos.icatch.jta.UserTransactionImp"/>
+        </Arg>
+    </New>
+</Configure>

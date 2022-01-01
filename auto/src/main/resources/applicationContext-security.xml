@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/security"
+             xmlns:beans="http://www.springframework.org/schema/beans"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:c="http://www.springframework.org/schema/c"
+             xmlns:p="http://www.springframework.org/schema/p"
+             xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+            http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security.xsd">
+    <!--chnage enabled to activate funtionality,如需開放相關功能，將值設為enabled-->
+    <global-method-security pre-post-annotations="disabled" secured-annotations="disabled" jsr250-annotations="disabled"/>
+    <!--Custom authentication. 自訂用戶驗證-->
+    <beans:bean id="rememberMeServices" class="org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices">
+        <beans:constructor-arg value="${artifactId}" type="java.lang.String"/> 
+        <beans:constructor-arg ref="customUserService" type="org.springframework.security.core.userdetails.UserDetailsService"/> 
+        <beans:property name="tokenValiditySeconds" value="864000"/>
+    </beans:bean>
+    <beans:bean id="captchaUsernamePasswordAuthenticationFilter"
+                class="Uber.context.CaptchaUsernamePasswordAuthenticationFilter">
+        <beans:property name="filterProcessesUrl" value="/j_spring_security_check" />
+        <beans:property name="authenticationFailureHandler" ref="failureHandler"/>
+        <beans:property name="authenticationSuccessHandler" ref="successHandler"/>
+        <beans:property name="authenticationManager" ref="authenticationManager"/>
+        <beans:property name="rememberMeServices" ref="rememberMeServices"/>
+    </beans:bean>
+    <beans:bean id="successHandler" class="Uber.context.CustomAuthSuccessHandler">
+        <beans:property name="defaultTargetUrl" value="/user/myinfo"/>
+        <beans:property name="targetUrlParameter" value="tup"/>
+    </beans:bean>
+    <beans:bean id="failureHandler" class="Uber.context.LoginRequestAuthenticationFailureHandler">
+        <beans:property name="defaultFailureUrl" value="/login?authfailed=true"/>
+    </beans:bean>
+                
+    <beans:bean id="authEntryPoint" class="Uber.context.AjaxAwareLoginUrlAuthenticationEntryPoint" scope="singleton" 
+                c:loginFormUrl="/login" p:forceHttps="true"/>
+    <!--Disable static path check to save time. 不過濾特定路徑以節省時間-->
+    <http pattern="/images" security="none"/>
+    <http pattern="/css" security="none"/>
+    <http pattern="/scripts" security="none"/>
+    <http pattern="/wro" security="none"/>
+    <http pattern="/static/**" security="none"/>
+    <http auto-config="false" use-expressions="true" disable-url-rewriting="true"  entry-point-ref="authEntryPoint">
+        <intercept-url pattern="/index" access="permitAll" requires-channel="any"/>
+        <intercept-url pattern="/login" access="permitAll" requires-channel="https"/>
+        <intercept-url pattern="/j_spring_security_check" method="POST" access="permitAll" requires-channel="https"/>
+        <intercept-url pattern="/captcha" access="permitAll" requires-channel="https"/>
+        <!--important: Without logout pattern setting result in http accepted only,and redirection from ssl will lost csrf information,
+            若未指定登出的pattern，則登出只接受http連線，從https登出會導到http，以致區丟失csrf資訊-->
+        <intercept-url pattern="/j_spring_security_logout" access="permitAll" requires-channel="any"/>
+        <intercept-url pattern="/changePassword" access="fullyAuthenticated" requires-channel="https"/>
+        <!--http://www.pcnet.idv.tw/pcnet/network/network_ip_addr.htm CIDR expression 表示法-->
+        <intercept-url pattern="/admin/**" access="hasRole('ROLE_ADMIN') and (hasIpAddress('127.0.0.1') or hasIpAddress('::1') or hasIpAddress('192.168.0.0/16') or hasIpAddress('fd3d:3d60:0682:1e59::/64'))" requires-channel="any"/>
+        <intercept-url pattern="/member/edit/**" access="hasRole('ROLE_ADMIN') and (hasIpAddress('127.0.0.1') or hasIpAddress('::1') or hasIpAddress('192.168.0.0/16') or hasIpAddress('fd3d:3d60:0682:1e59::/64'))" requires-channel="https"/>
+        <intercept-url pattern="/member/update" method="POST" access="hasRole('ROLE_ADMIN') and (hasIpAddress('127.0.0.1') or hasIpAddress('::1') or hasIpAddress('192.168.0.0/16') or hasIpAddress('fd3d:3d60:0682:1e59::/64'))" requires-channel="https"/>
+        <intercept-url pattern="/user/**" access="authenticated" requires-channel="any"/>
+        <intercept-url pattern="/json/**" access="isAuthenticated()" requires-channel="any"/>
+        <intercept-url pattern="/**" access="permitAll" requires-channel="http"/>
+        <!--Default value for new s.s version(新版s.s預設值)
+           login-processing-url="login",
+           username-parameter="username",
+           password-parameter="password"-->
+        <!--form-login login-page="/login" authentication-failure-url="/login?authfailed=true" default-target-url="/index" always-use-default-target="false" username-parameter="j_username" password-parameter="j_password" login-processing-url="/j_spring_security_check"/-->
+        <!--login-processing-url="/j_spring_security_check"/>-->
+        <logout  delete-cookies="true" invalidate-session="true" logout-url="/j_spring_security_logout" logout-success-url="/index"/>
+        <custom-filter position="FORM_LOGIN_FILTER" ref="captchaUsernamePasswordAuthenticationFilter"/>
+        <session-management session-fixation-protection="migrateSession"/>
+        <remember-me key="${artifactId}" services-ref="rememberMeServices"/>
+        <anonymous key="${artifactId}" username="anonymous"/>
+        <!--Http 403,404 report page. 權限不足403,404時導向網址-->
+        <access-denied-handler error-page="/error?accessDeined=true"/>
+        <!-- http://spring.io/blog/2013/08/21/spring-security-3-2-0-rc1-highlights-csrf-protection/ -->
+        <csrf/>
+        <headers>
+            <cache-control/>
+            <content-type-options/>
+            <content-security-policy policy-directives="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "/>
+            <feature-policy policy-directives="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "/>
+            <frame-options policy="SAMEORIGIN" />
+            <hsts disabled="false"/>
+            <xss-protection/>
+        </headers>
+        <port-mappings>
+            <port-mapping http="8080" https="8443"/> 
+        </port-mappings>
+    </http>
+    <beans:bean id="customUserService" class="Uber.context.CustomUserService"/>
+    <beans:bean id="customAuthProvider" class="Uber.context.CustomAuthProvider">
+        <beans:constructor-arg ref="customUserService" type="org.springframework.security.core.userdetails.UserDetailsService"/>
+    </beans:bean>
+    <authentication-manager alias="authenticationManager">
+        <!--Determine user roles by yourself.自定義用戶權限-->
+        <authentication-provider ref="customAuthProvider"/>
+    </authentication-manager>
+</beans:beans>

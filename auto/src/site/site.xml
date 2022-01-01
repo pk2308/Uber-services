@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- @version $Revision$ ($Author$) $Date$ -->
+<project xmlns="http://maven.apache.org/DECORATION/1.7.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/DECORATION/1.7.0 http://maven.apache.org/xsd/decoration-1.7.0.xsd"
+         name="${project.artifactId}">
+    <publishDate position="left" format="yyyy-MM-dd  'GMT'Z" />
+    <version position="right"/>
+    <!--Skin reference http://maven.apache.org/skins/index.html-->
+    <!--    <skin>
+        <groupId>org.apache.maven.skins</groupId>
+        <artifactId>maven-classic-skin</artifactId>
+        <version>1.1</version>
+    </skin>-->
+    <skin>
+        <groupId>org.apache.maven.skins</groupId>
+        <artifactId>maven-fluido-skin</artifactId>
+        <version>1.9</version>
+    </skin>
+    <custom>
+        <fluidoSkin>
+            <sideBarEnabled>true</sideBarEnabled>
+        </fluidoSkin>
+    </custom>
+    
+    <bannerLeft>
+        <name>Hotel Database</name>
+        <src>http://maven.apache.org/images/apache-maven-project.png</src>
+        <href>http://maven.apache.org/</href>
+    </bannerLeft>
+    <bannerRight>
+        <src>http://maven.apache.org/images/maven-small.gif</src>
+    </bannerRight>
+    <body>
+        <links>
+            <item name="開始使用Maven" href="http://kentyeh.github.io/mavenStartup/" target="_blank"/>
+            <item name="Spring Web快速開發" href="http://github.com/kentyeh/springJdbiArch" target="_blank"/>
+        </links>
+        
+        <menu ref="reports"/>
+        
+        <menu>
+	    <item name="黃瓜報表(Cucumber Report)" href="cucumber-reports/cucumber-html-reports/overview-features.html" target="_blank"/>
+            <item name="測試報表(Tess Report)" href="../surefire-reports/index.html" target="_blank"/>
+            <item name="整合報表(Integration Report)" href="../failsafe-reports/index.html" target="_blank"/>
+            <item name="測試涵蓋報表(Jacoco Tess Report)" href="jacoco-ut/index.html" target="_blank"/>
+            <item name="整合涵蓋報表(Jacoco Integration Report)" href="jacoco-it/index.html" target="_blank"/>
+            <item name="說明(README)" href="readme.html"/>
+            <item name="常見問題(FAQ)" href="faq.html"/>
+        </menu>
+    </body>
+  
+</project>

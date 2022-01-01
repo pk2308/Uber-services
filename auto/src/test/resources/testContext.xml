@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:c="http://www.springframework.org/schema/c"
+       xmlns:p="http://www.springframework.org/schema/p"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xmlns:cache="http://www.springframework.org/schema/cache"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+       http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd
+       http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+       http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+       http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd
+       http://www.springframework.org/schema/cache http://www.springframework.org/schema/cache/spring-cache.xsd">
+    <!--support JSR-250-->
+    <context:annotation-config/>
+    
+    <!-- defind application variables-->
+    <util:map id="appProperies" map-class="java.util.HashMap" key-type="java.lang.String" value-type="java.lang.String">
+        <entry key="jdbc.url" value="jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DB_CLOSE_ON_EXIT=FALSE;TRACE_LEVEL_SYSTEM_OUT=0;TRACE_LEVEL_FILE=4" />
+        <entry key="jdbc.username" value="sa" />
+        <entry key="jdbc.password" value="" />
+        <entry key="i18n.localeParam" value="locale" />
+        <entry key="i18n.defaultLocale" value="zh_TW" />
+    </util:map>
+    
+    <!--DataSource setting -->
+    <bean id="dataSource" class="org.h2.jdbcx.JdbcConnectionPool" destroy-method="dispose">
+        <constructor-arg>
+            <bean class="org.h2.jdbcx.JdbcDataSource">
+                <property name="URL" value="#{appProperies['jdbc.url']}"/>
+                <property name="user" value="#{appProperies['jdbc.username']}"/>
+                <property name="password" value="#{appProperies['jdbc.password']}"/>
+            </bean>
+        </constructor-arg>
+    </bean> 
+    
+    <!-- Buildin test database.測試資料庫-->       
+    <jdbc:initialize-database data-source="dataSource">
+        <jdbc:script location="classpath:testSchema.sql" encoding="UTF-8" execution="INIT"/>
+    </jdbc:initialize-database>
+    <alias name="org.springframework.jdbc.datasource.init.DataSourceInitializer#0" alias="dsInit"/>
+    
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager" p:dataSource-ref="dataSource"/>
+    
+    <!--Initialization must run after SQL executing.必須等到SQL跑完-->
+    <bean id="jdbi" class="org.jdbi.v3.spring5.JdbiFactoryBean" c:dataSource-ref="dataSource" depends-on="dsInit">
+        <property name="plugins">
+            <util:list value-type="org.jdbi.v3.core.spi.JdbiPlugin">
+                <bean class="org.jdbi.v3.sqlobject.SqlObjectPlugin"/>
+                <bean class="org.jdbi.v3.core.h2.H2DatabasePlugin"/>
+            </util:list>
+        </property>
+    </bean>
+    <bean class="org.springframework.beans.factory.config.MethodInvokingBean">
+        <property name="targetObject" ref="jdbi"/>
+        <property name="targetMethod" value="setSqlLogger"/>
+        <property name="arguments">
+            <bean class="Uber.context.JdbiLog"/>
+        </property>
+    </bean>
+    <!--Enabled @Transactional-->
+    <tx:annotation-driven transaction-manager="transactionManager" proxy-target-class="true"/>
+    
+    
+    <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+        <property name="dataSource" ref="dataSource" />
+    </bean>
+    
+    <import resource="classpath:applicationContext-mvc.xml"/>
+    <!--controller-->
+    <context:component-scan base-package="Uber.controller"/>
+    
+    <!-- Validator -->
+    <bean id="validationUtils" class="Uber.context.ValidationUtils"/>
+    
+    <!--for file upload test,檔案上傳測試用-->
+    <!--bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver"/-->
+    
+    <bean id="springCacheManager" class="com.hazelcast.spring.cache.HazelcastCacheManager">
+        <constructor-arg ref="hazelcastInstance"/>
+        <property name="cacheOptions" value="defaultReadTimeout=0"/>
+    </bean>
+    <cache:annotation-driven cache-manager="springCacheManager"/>
+    
+</beans>
